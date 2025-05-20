@@ -28,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Skip if Supabase client isn't available
     if (!supabase) {
+      console.error("Supabase client not available")
       setIsLoading(false)
       return
     }
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(null)
           setUser(null)
         } else {
+          console.log("Session retrieved:", session ? "Yes" : "No")
           setSession(session)
           setUser(session?.user || null)
 
@@ -94,21 +96,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!supabase) return { error: new Error("Supabase client not available") }
 
       setIsLoading(true)
+      console.log("Attempting to sign in with:", email)
       const { error, data } = await supabase.auth.signInWithPassword({ email, password })
 
-      if (!error) {
-        // Force a session refresh to ensure we have the latest session data
-        const { data: sessionData } = await supabase.auth.getSession()
-        setSession(sessionData.session)
-        setUser(sessionData.session?.user || null)
-
-        // Use a small timeout to ensure state is updated before redirect
-        setTimeout(() => {
-          router.push("/dashboard")
-        }, 100)
+      if (error) {
+        console.error("Sign in error:", error.message)
+        return { error }
       }
 
-      return { error }
+      console.log("Sign in successful, user:", data.user?.email)
+
+      // Force a session refresh to ensure we have the latest session data
+      const { data: sessionData } = await supabase.auth.getSession()
+      setSession(sessionData.session)
+      setUser(sessionData.session?.user || null)
+
+      // Use a small timeout to ensure state is updated before redirect
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 100)
+
+      return { error: null }
     } catch (error) {
       console.error("Error signing in:", error)
       return { error }
@@ -121,7 +129,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!supabase) return { error: new Error("Supabase client not available"), data: null }
 
+      console.log("Attempting to sign up with:", email)
       const { data, error } = await supabase.auth.signUp({ email, password })
+
+      if (error) {
+        console.error("Sign up error:", error.message)
+      } else {
+        console.log("Sign up successful, user:", data.user?.email)
+      }
+
       return { data, error }
     } catch (error) {
       console.error("Error signing up:", error)
@@ -133,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!supabase) return
 
+      console.log("Signing out user")
       await supabase.auth.signOut()
       setUser(null)
       setSession(null)
@@ -146,9 +163,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!supabase) return { error: new Error("Supabase client not available") }
 
+      console.log("Requesting password reset for:", email)
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       })
+
+      if (error) {
+        console.error("Password reset error:", error.message)
+      } else {
+        console.log("Password reset email sent")
+      }
+
       return { error }
     } catch (error) {
       console.error("Error resetting password:", error)

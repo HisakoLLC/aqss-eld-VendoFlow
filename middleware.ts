@@ -3,27 +3,8 @@ import type { NextRequest } from "next/server"
 
 // This function can be marked `async` if using `await` inside
 export function middleware(request: NextRequest) {
-  // Get the pathname of the request
-  const path = request.nextUrl.pathname
-
-  // Define public paths that don't require authentication
-  const isPublicPath =
-    path === "/login" || path === "/signup" || path === "/reset-password" || path === "/" || path.startsWith("/api/")
-
-  // Get the token from the cookies
-  const token = request.cookies.get("supabase-auth-token")?.value
-
-  // If the path is not public and there's no token, redirect to login
-  if (!isPublicPath && !token) {
-    return NextResponse.redirect(new URL("/login", request.url))
-  }
-
-  // If the path is public and there's a token, redirect to dashboard
-  if (isPublicPath && token && path !== "/api/") {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
-  }
-
-  // Continue with the request
+  // For now, just pass through all requests without any auth checks
+  // This will allow the client-side auth to handle authentication
   return NextResponse.next()
 }
 
@@ -36,7 +17,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public (public files)
+     * - api (API routes)
      */
-    "/((?!_next/static|_next/image|favicon.ico|public).*)",
+    "/((?!_next/static|_next/image|favicon.ico|public|api).*)",
   ],
 }

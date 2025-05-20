@@ -24,16 +24,25 @@ export default function LoginPage() {
     setIsSubmitting(true)
 
     try {
+      console.log("Login form submitted with email:", email)
       const { error } = await signIn(email, password)
 
       if (error) {
+        console.error("Login error:", error.message || "Unknown error")
         toast({
           title: "Login failed",
           description: error.message || "Please check your credentials and try again.",
           variant: "destructive",
         })
+      } else {
+        console.log("Login successful, redirecting...")
+        toast({
+          title: "Login successful",
+          description: "Welcome back!",
+        })
       }
     } catch (error) {
+      console.error("Unexpected login error:", error)
       toast({
         title: "Login failed",
         description: "An unexpected error occurred. Please try again.",
