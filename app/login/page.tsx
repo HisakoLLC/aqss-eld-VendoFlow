@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,13 +10,24 @@ import { Label } from "@/components/ui/label"
 import { Loader2, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { signIn } = useAuth()
+  const { signIn, user } = useAuth()
   const { toast } = useToast()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get("redirectTo") || "/dashboard"
+
+  // If user is already logged in, redirect to the target page
+  useEffect(() => {
+    if (user) {
+      router.push(redirectTo)
+    }
+  }, [user, router, redirectTo])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,11 +45,12 @@ export default function LoginPage() {
           variant: "destructive",
         })
       } else {
-        console.log("Login successful, redirecting...")
+        console.log("Login successful, redirecting to:", redirectTo)
         toast({
           title: "Login successful",
           description: "Welcome back!",
         })
+        // Redirect will happen in the useEffect when user state updates
       }
     } catch (error) {
       console.error("Unexpected login error:", error)
@@ -62,6 +73,11 @@ export default function LoginPage() {
             <CardTitle className="text-2xl font-bold text-center">VendaFlow POS</CardTitle>
           </div>
           <CardDescription className="text-center">Enter your credentials to sign in</CardDescription>
+          {redirectTo !== "/dashboard" && (
+            <p className="text-center text-sm text-muted-foreground">
+              You'll be redirected to your requested page after login
+            </p>
+          )}
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">

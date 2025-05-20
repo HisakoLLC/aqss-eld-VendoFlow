@@ -49,14 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log("Session retrieved:", session ? "Yes" : "No")
           setSession(session)
           setUser(session?.user || null)
-
-          // If user is logged in and we're on an auth page, redirect to dashboard
-          if (
-            session &&
-            (pathname === "/login" || pathname === "/signup" || pathname === "/reset-password" || pathname === "/")
-          ) {
-            router.push("/dashboard")
-          }
         }
       } catch (error) {
         console.error("Error getting session:", error)
@@ -75,21 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("Auth state changed:", _event, session?.user?.email)
       setSession(session)
       setUser(session?.user || null)
-
-      // Don't set isLoading to false here, as it might cause flickering
-      // Only redirect if we're on an auth page and user is logged in
-      if (
-        session &&
-        (pathname === "/login" || pathname === "/signup" || pathname === "/reset-password" || pathname === "/")
-      ) {
-        router.push("/dashboard")
-      }
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [router, supabase, pathname])
+  }, [supabase])
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -110,11 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: sessionData } = await supabase.auth.getSession()
       setSession(sessionData.session)
       setUser(sessionData.session?.user || null)
-
-      // Use a small timeout to ensure state is updated before redirect
-      setTimeout(() => {
-        router.push("/dashboard")
-      }, 100)
 
       return { error: null }
     } catch (error) {

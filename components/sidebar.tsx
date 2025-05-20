@@ -30,17 +30,9 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const { theme, setTheme } = useTheme()
   const auth = useAuth()
-  // Safely access auth context with error handling
-  let user = null
-  let signOut = async () => {}
-
-  try {
-    user = auth.user
-    signOut = auth.signOut
-  } catch (error) {
-    console.error("Auth context not available:", error)
-    // Continue with null user and empty signOut function
-  }
+  // Safe auth access with fallback
+  const user = auth?.user || null
+  const signOut = auth?.signOut || (async () => {})
 
   // Load collapsed state from localStorage on component mount
   useEffect(() => {

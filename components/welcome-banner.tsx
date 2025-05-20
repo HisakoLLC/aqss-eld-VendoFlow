@@ -33,7 +33,7 @@ export function WelcomeBanner() {
               variant="secondary"
               size="sm"
               className="bg-white text-[#1A1A1A] hover:bg-white/90"
-              onClick={() => window.open("https://vendaflow.com", "_blank")}
+              onClick={() => window.open("https://vendoflow.com", "_blank")}
             >
               View Documentation
             </Button>
