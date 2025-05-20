@@ -19,6 +19,9 @@ export function getSupabaseBrowserClient() {
         auth: {
           persistSession: true,
           storageKey: "vendaflow-auth",
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: "implicit",
         },
       })
     } catch (error) {
