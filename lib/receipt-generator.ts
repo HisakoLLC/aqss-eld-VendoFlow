@@ -71,6 +71,31 @@ export async function generateReceipt(data: ReceiptData): Promise<Blob> {
       return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
     }
 
+    // Function to handle text wrapping for long product names
+    const wrapText = (text: string, maxWidth: number): string[] => {
+      const words = text.split(" ")
+      const lines: string[] = []
+      let currentLine = ""
+
+      words.forEach((word) => {
+        const testLine = currentLine ? `${currentLine} ${word}` : word
+        const testWidth = (doc.getStringUnitWidth(testLine) * doc.getFontSize()) / doc.internal.scaleFactor
+
+        if (testWidth > maxWidth) {
+          lines.push(currentLine)
+          currentLine = word
+        } else {
+          currentLine = testLine
+        }
+      })
+
+      if (currentLine) {
+        lines.push(currentLine)
+      }
+
+      return lines
+    }
+
     // Add store logo/name at the top - properly centered
     doc.setFont("helvetica", "bold")
     doc.setFontSize(14)
@@ -145,8 +170,12 @@ export async function generateReceipt(data: ReceiptData): Promise<Blob> {
     doc.setFont("helvetica", "bold")
     doc.setFontSize(9)
     doc.text("Item", margin, yPos)
-    doc.text("Qty", pageWidth - 35, yPos)
+
+    // Position quantity and price headers with adjusted spacing
+    doc.text("Qty", pageWidth - 30, yPos)
+    // Adjusted price column position - moved slightly to the left
     doc.text("Price", pageWidth - 20, yPos)
+
     yPos += 4
     drawHorizontalLine(yPos)
     yPos += 4
@@ -157,28 +186,39 @@ export async function generateReceipt(data: ReceiptData): Promise<Blob> {
 
     for (const item of data.items) {
       // Calculate available width for item name to prevent overflow
-      const maxNameWidth = pageWidth - margin * 2 - 40 // Reserve space for quantity and price
+      const nameColumnWidth = pageWidth - margin * 2 - 35 // Reserve space for quantity and price
 
-      // Truncate item name if too long
-      const itemName = item.name
+      // Wrap long product names
+      const itemNameLines = wrapText(item.name, nameColumnWidth)
 
       // Position for item name (left-aligned)
-      doc.text(itemName, margin, yPos)
-      yPos += 3
+      let itemYPos = yPos
+
+      // Print each line of the wrapped product name
+      itemNameLines.forEach((line, index) => {
+        doc.text(line, margin, itemYPos)
+        itemYPos += 3
+      })
+
+      // Adjust yPos based on the number of lines
+      const nameHeight = Math.max(itemNameLines.length * 3, 3)
+
+      // Position for quantity (right-aligned)
+      doc.text(`${item.quantity}x`, pageWidth - 30, yPos)
+
+      // Position for price (right-aligned) - adjusted to the left
+      const priceText = formatCurrency(item.price)
+      doc.text(priceText, pageWidth - 20, yPos)
+
+      // Move down for SKU
+      yPos += nameHeight
 
       // Position for SKU (indented)
       doc.setTextColor(100, 100, 100) // Gray for SKU
       doc.text(`SKU: ${item.sku}`, margin + 2, yPos)
       doc.setTextColor(0, 0, 0) // Back to black
 
-      // Position for quantity (right-aligned)
-      doc.text(`${item.quantity}x`, pageWidth - 35, yPos - 3)
-
-      // Position for price (right-aligned)
-      const priceText = formatCurrency(item.price)
-      doc.text(priceText, pageWidth - 20, yPos - 3)
-
-      // Position for item total (right-aligned)
+      // Position for item total (right-aligned) - adjusted to the left
       const totalText = formatCurrency(item.total)
       doc.text(totalText, pageWidth - 20, yPos)
 
@@ -229,7 +269,7 @@ export async function generateReceipt(data: ReceiptData): Promise<Blob> {
       doc.setFont("helvetica", "italic")
       doc.setFontSize(9)
       doc.setTextColor(231, 76, 60) // Red
-      centerText(`Please pay the remaining ${formatCurrency(data.amountDue)} to complete this transaction`, yPos, 9)
+      centerText(`Please pay the remaining ${formatCurrency(data.amountDue)} . Thank You.`, yPos, 9)
       doc.setTextColor(0, 0, 0) // Reset to black
       yPos += 8
     }

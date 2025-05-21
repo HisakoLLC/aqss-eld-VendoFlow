@@ -711,26 +711,21 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => updateItemQuantity(index, item.quantity - 1)}
-                                disabled={item.quantity <= 1}
-                              >
-                                -
-                              </Button>
-                              <span className="w-8 text-center">{item.quantity}</span>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => updateItemQuantity(index, item.quantity + 1)}
-                                disabled={item.quantity >= item.max_quantity}
-                              >
-                                +
-                              </Button>
+                            <div className="flex items-center space-x-1">
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => {
+                                  const newQuantity = Number.parseInt(e.target.value, 10)
+                                  if (!isNaN(newQuantity) && newQuantity >= 1 && newQuantity <= item.max_quantity) {
+                                    updateItemQuantity(index, newQuantity)
+                                  }
+                                }}
+                                className="w-16 h-8"
+                                min="1"
+                                max={item.max_quantity}
+                              />
+                              <span className="text-xs text-muted-foreground">Max: {item.max_quantity}</span>
                             </div>
                           </TableCell>
                           <TableCell>{formatCurrency(item.total)}</TableCell>
