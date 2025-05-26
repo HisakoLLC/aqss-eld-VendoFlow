@@ -16,6 +16,7 @@ import {
   Sun,
   Moon,
   LogOut,
+  Receipt,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTheme } from "next-themes"
@@ -77,6 +78,11 @@ export function Sidebar() {
       href: "/purchases",
       label: "Purchases",
       icon: Truck,
+    },
+    {
+      href: "/expenses",
+      label: "Expenses",
+      icon: Receipt,
     },
     {
       href: "/settings",
