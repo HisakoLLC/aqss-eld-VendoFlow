@@ -22,8 +22,8 @@ import { ProductEditForm } from "./product-edit-form"
 import { formatCurrency } from "@/lib/utils"
 
 export function ProductsList() {
-  const [products, setProducts] = useState([])
-  const [filteredProducts, setFilteredProducts] = useState([])
+  const [products, setProducts] = useState<any[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [productToDelete, setProductToDelete] = useState(null)

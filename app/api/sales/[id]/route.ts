@@ -6,18 +6,18 @@ import { type NextRequest, NextResponse } from "next/server"
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
+
     // Validate parameters
-    if (!params.id) {
+    if (!id) {
       return NextResponse.json({ error: "Sale ID is required" }, { status: 400 })
     }
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
       return NextResponse.json({ error: "Missing Supabase environment variables" }, { status: 500 })
     }
-
-    const id = params.id
 
     // Create a direct server client with the service role key
     const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_KEY, {

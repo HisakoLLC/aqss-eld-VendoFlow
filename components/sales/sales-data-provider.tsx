@@ -29,7 +29,7 @@ export async function getSalesData() {
     }
 
     // Transform data to match the Sale type
-    const sales: Sale[] = data.map((sale) => ({
+    const sales: Sale[] = ((data as any[]) || []).map((sale: any) => ({
       id: sale.id,
       receipt_number: sale.receipt_number,
       sale_date: sale.sale_date,
@@ -103,9 +103,9 @@ export async function deleteSale(id: string) {
     }
 
     // Restore product quantities
-    for (const item of saleItems || []) {
+    for (const item of (saleItems as any[]) || []) {
       // Get current product quantity
-      const { data: product, error: productError } = await supabase
+      const { data: product, error: productError }: any = await supabase
         .from("products")
         .select("quantity")
         .eq("id", item.product_id)
@@ -121,7 +121,7 @@ export async function deleteSale(id: string) {
         .update({
           quantity: product.quantity + item.quantity,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", item.product_id)
 
       if (updateError) {
@@ -165,7 +165,7 @@ export async function updatePaymentStatus(id: string, status: string, amountPaid
     })
 
     // Get the sale to calculate amount due
-    const { data: sale, error: saleError } = await supabase.from("sales").select("total_amount").eq("id", id).single()
+    const { data: sale, error: saleError }: any = await supabase.from("sales").select("total_amount").eq("id", id).single()
 
     if (saleError) {
       throw saleError
@@ -182,7 +182,7 @@ export async function updatePaymentStatus(id: string, status: string, amountPaid
         amount_paid: amountPaid,
         amount_due: amountDue,
         updated_at: new Date().toISOString(),
-      })
+      } as any)
       .eq("id", id)
 
     if (updateError) {

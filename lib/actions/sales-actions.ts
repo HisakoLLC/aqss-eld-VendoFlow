@@ -253,7 +253,7 @@ export async function getProductsWithStock() {
     if (error) throw error
 
     return { success: true, products: data }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching products:", error)
     return { success: false, products: [], error: error.message }
   }

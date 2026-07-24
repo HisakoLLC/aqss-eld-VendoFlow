@@ -32,6 +32,7 @@ export function SettingsDataProvider({ children }: { children: ReactNode }) {
   const supabase = getSupabaseBrowserClient()
 
   const refreshSettings = async () => {
+    if (!supabase) return
     try {
       setIsLoading(true)
       setError(null)
@@ -42,7 +43,15 @@ export function SettingsDataProvider({ children }: { children: ReactNode }) {
         throw error
       }
 
-      setSettings(data || [])
+      setSettings(
+        data
+          ? data.map((d: any) => ({
+              ...d,
+              id: d.id.toString(),
+              description: d.description || "",
+            }))
+          : []
+      )
     } catch (err: any) {
       setError(err.message || "Failed to fetch settings")
       toast({
@@ -56,6 +65,7 @@ export function SettingsDataProvider({ children }: { children: ReactNode }) {
   }
 
   const createSetting = async (setting: Omit<Setting, "id" | "created_at" | "updated_at">) => {
+    if (!supabase) return
     try {
       setError(null)
 
@@ -66,7 +76,7 @@ export function SettingsDataProvider({ children }: { children: ReactNode }) {
         throw new Error(`Setting with key '${setting.key}' already exists`)
       }
 
-      const { error } = await supabase.from("settings").insert([setting])
+      const { error } = await supabase.from("settings").insert([setting as any])
 
       if (error) {
         throw error
@@ -90,6 +100,7 @@ export function SettingsDataProvider({ children }: { children: ReactNode }) {
   }
 
   const updateSetting = async (id: string, setting: Partial<Omit<Setting, "id" | "created_at" | "updated_at">>) => {
+    if (!supabase) return
     try {
       setError(null)
 
@@ -99,7 +110,7 @@ export function SettingsDataProvider({ children }: { children: ReactNode }) {
           .from("settings")
           .select("*")
           .eq("key", setting.key)
-          .neq("id", id)
+          .neq("id", id as any)
           .limit(1)
 
         if (existingSettings && existingSettings.length > 0) {
@@ -107,7 +118,7 @@ export function SettingsDataProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const { error } = await supabase.from("settings").update(setting).eq("id", id)
+      const { error } = await supabase.from("settings").update(setting as any).eq("id", id as any)
 
       if (error) {
         throw error
@@ -131,10 +142,11 @@ export function SettingsDataProvider({ children }: { children: ReactNode }) {
   }
 
   const deleteSetting = async (id: string) => {
+    if (!supabase) return
     try {
       setError(null)
 
-      const { error } = await supabase.from("settings").delete().eq("id", id)
+      const { error } = await supabase.from("settings").delete().eq("id", id as any)
 
       if (error) {
         throw error

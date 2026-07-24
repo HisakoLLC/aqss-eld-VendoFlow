@@ -26,7 +26,7 @@ export async function initializeDatabase() {
       return false
     }
 
-    const settingsTableExists = tableExistsResult
+    const settingsTableExists = Boolean(tableExistsResult)
 
     if (!settingsTableExists) {
       console.log("Settings table does not exist, creating it...")
@@ -86,7 +86,7 @@ export async function initializeDatabase() {
     ]
 
     for (const setting of defaultSettings) {
-      const exists = settings?.some((s) => s.key === setting.key)
+      const exists = (settings as any[])?.some((s: any) => s.key === setting.key)
       if (!exists) {
         console.log(`Inserting default setting: ${setting.key}`)
         const { error: insertError } = await supabase.from("settings").insert({
@@ -115,7 +115,7 @@ export async function initializeDatabase() {
 
     if (columnCheckError) {
       console.error("Error checking if customer_name column exists:", columnCheckError)
-    } else if (!columnExistsResult) {
+    } else if (!Boolean(columnExistsResult)) {
       console.log("customer_name column does not exist in sales table, adding it...")
       const { error: addColumnError } = await supabase.rpc("execute_sql", {
         sql_query: `ALTER TABLE sales ADD COLUMN IF NOT EXISTS customer_name TEXT;`,

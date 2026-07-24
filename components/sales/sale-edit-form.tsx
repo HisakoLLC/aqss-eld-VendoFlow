@@ -35,10 +35,10 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(false)
-  const [products, setProducts] = useState([])
-  const [cartItems, setCartItems] = useState([])
+  const [products, setProducts] = useState<any[]>([])
+  const [cartItems, setCartItems] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [filteredProducts, setFilteredProducts] = useState([])
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [skipReceiptGeneration, setSkipReceiptGeneration] = useState(false)
   const [receiptGenerating, setReceiptGenerating] = useState(false)
@@ -290,7 +290,7 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
     setShowSuggestions(false)
   }
 
-  const addProductToCart = (product) => {
+  const addProductToCart = (product: any) => {
     if (product.quantity <= 0) {
       toast({
         title: "Out of stock",
@@ -301,7 +301,7 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
     }
 
     // Check if product already in cart
-    const existingItemIndex = cartItems.findIndex((item) => item.id === product.id)
+    const existingItemIndex = cartItems.findIndex((item: any) => item.id === product.id)
 
     if (existingItemIndex >= 0) {
       // Update quantity if already in cart
@@ -337,7 +337,7 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
     }
   }
 
-  const updateItemQuantity = (index, newQuantity) => {
+  const updateItemQuantity = (index: number, newQuantity: number) => {
     if (newQuantity < 1) return
 
     const updatedItems = [...cartItems]
@@ -357,7 +357,7 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
     setCartItems(updatedItems)
   }
 
-  const updateItemPrice = (index, newPrice) => {
+  const updateItemPrice = (index: number, newPrice: any) => {
     // Convert to number and validate
     const price = Number.parseFloat(newPrice)
 
@@ -379,17 +379,17 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
     setCartItems(updatedItems)
   }
 
-  const removeItem = (index) => {
+  const removeItem = (index: number) => {
     const updatedItems = [...cartItems]
     updatedItems.splice(index, 1)
     setCartItems(updatedItems)
   }
 
   const calculateTotal = () => {
-    return cartItems.reduce((sum, item) => sum + item.total, 0)
+    return cartItems.reduce((sum: number, item: any) => sum + item.total, 0)
   }
 
-  const generateAndDownloadReceipt = async (receiptNumber, totalAmount, amountPaid, amountDue) => {
+  const generateAndDownloadReceipt = async (receiptNumber: string, totalAmount: number, amountPaid: number, amountDue: number) => {
     setReceiptGenerating(true)
     try {
       // Generate receipt PDF with store info
@@ -422,7 +422,7 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
       toast({
         title: "Receipt Generation Failed",
         description: "We couldn't generate the receipt PDF. Please try printing it later.",
-        variant: "warning",
+        variant: "destructive",
       })
       return false
     } finally {
@@ -430,7 +430,7 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
     }
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (cartItems.length === 0) {
@@ -501,7 +501,7 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
         // For new sales, get a receipt number but don't create the sale yet
         try {
           receiptNumber = await generateReceiptNumber()
-        } catch (error) {
+        } catch (error: any) {
           throw new Error(`Failed to generate receipt number: ${error.message}`)
         }
 
@@ -544,7 +544,7 @@ export function SaleEditForm({ saleId, onSuccess, onCancel }: SaleEditFormProps)
         router.push("/sales")
         router.refresh()
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving sale:", error)
 
       // If the error is related to receipt generation, offer to skip it

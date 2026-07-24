@@ -14,6 +14,7 @@ export interface Database {
           quantity: number
           category: string | null
           image_url: string | null
+          user_id: string | null
           created_at: string
           updated_at: string
         }
@@ -27,6 +28,7 @@ export interface Database {
           quantity?: number
           category?: string | null
           image_url?: string | null
+          user_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -40,9 +42,11 @@ export interface Database {
           quantity?: number
           category?: string | null
           image_url?: string | null
+          user_id?: string | null
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       suppliers: {
         Row: {
@@ -75,6 +79,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       purchases: {
         Row: {
@@ -107,6 +112,15 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       purchase_items: {
         Row: {
@@ -139,6 +153,22 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       sales: {
         Row: {
@@ -148,6 +178,9 @@ export interface Database {
           total_amount: number
           payment_method: string
           payment_reference: string | null
+          payment_status: string | null
+          amount_paid: number | null
+          amount_due: number | null
           notes: string | null
           customer_name: string | null
           created_at: string
@@ -160,6 +193,9 @@ export interface Database {
           total_amount: number
           payment_method: string
           payment_reference?: string | null
+          payment_status?: string | null
+          amount_paid?: number | null
+          amount_due?: number | null
           notes?: string | null
           customer_name?: string | null
           created_at?: string
@@ -172,11 +208,15 @@ export interface Database {
           total_amount?: number
           payment_method?: string
           payment_reference?: string | null
+          payment_status?: string | null
+          amount_paid?: number | null
+          amount_due?: number | null
           notes?: string | null
           customer_name?: string | null
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       sale_items: {
         Row: {
@@ -209,6 +249,64 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      expenses: {
+        Row: {
+          id: string
+          title: string
+          category: string
+          amount: number
+          payment_method: string
+          expense_date: string
+          notes: string | null
+          attachment_url: string | null
+          recorded_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          category: string
+          amount: number
+          payment_method: string
+          expense_date?: string
+          notes?: string | null
+          attachment_url?: string | null
+          recorded_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          category?: string
+          amount?: number
+          payment_method?: string
+          expense_date?: string
+          notes?: string | null
+          attachment_url?: string | null
+          recorded_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       counters: {
         Row: {
@@ -223,10 +321,11 @@ export interface Database {
           id?: string
           value?: number
         }
+        Relationships: []
       }
       settings: {
         Row: {
-          id: number
+          id: number | string
           key: string
           value: string
           description: string | null
@@ -234,7 +333,7 @@ export interface Database {
           updated_at: string
         }
         Insert: {
-          id?: number
+          id?: number | string
           key: string
           value: string
           description?: string | null
@@ -242,14 +341,18 @@ export interface Database {
           updated_at?: string
         }
         Update: {
-          id?: number
+          id?: number | string
           key?: string
           value?: string
           description?: string | null
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
+    }
+    Views: {
+      [_ in never]: never
     }
     Functions: {
       generate_receipt_number: {
@@ -266,7 +369,7 @@ export interface Database {
         Args: {
           sql_query: string
         }
-        Returns: void
+        Returns: any
       }
       decrement_product_stock: {
         Args: {
@@ -282,6 +385,12 @@ export interface Database {
         }
         Returns: void
       }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
