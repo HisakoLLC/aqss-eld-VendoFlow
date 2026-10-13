@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardMetrics } from "@/components/dashboard-metrics"
+import { DashboardAccounting } from "@/components/dashboard-accounting"
 import { LowStockAlert } from "@/components/low-stock-alert"
 import { Button } from "@/components/ui/button"
 import { ShoppingCart, Package, Truck } from "lucide-react"
@@ -68,6 +69,10 @@ export default function Dashboard() {
 
         <Suspense fallback={<div>Loading metrics...</div>}>
           <DashboardMetrics />
+        </Suspense>
+
+        <Suspense fallback={<div>Loading accounting metrics...</div>}>
+          <DashboardAccounting />
         </Suspense>
 
         <Card className="col-span-3">
