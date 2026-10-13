@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { ProductDetails } from "./product-details"
 import { ProductEditForm } from "./product-edit-form"
+import { InventorySummary } from "./inventory-summary"
 import { formatCurrency } from "@/lib/utils"
 
 export function ProductsList() {
@@ -160,23 +161,31 @@ export function ProductsList() {
     setEditOpen(false)
   }
 
-  if (loading) {
-    return <div className="flex justify-center p-8">Loading inventory...</div>
-  }
-
-  if (products.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-60 border rounded-lg">
-        <p className="text-muted-foreground mb-4">No products found</p>
-        <Link href="/inventory/new">
-          <Button>Add your first product</Button>
-        </Link>
-      </div>
-    )
-  }
+  const totalProducts = products.length
+  const totalQuantity = products.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0)
+  const totalRetailValue = products.reduce(
+    (sum, p) => sum + (Number(p.price) || 0) * (Number(p.quantity) || 0),
+    0
+  )
+  const totalCostValue = products.reduce(
+    (sum, p) => sum + (Number(p.cost_price) || 0) * (Number(p.quantity) || 0),
+    0
+  )
+  const lowStockCount = products.filter((p) => Number(p.quantity) > 0 && Number(p.quantity) < 10).length
+  const outOfStockCount = products.filter((p) => Number(p.quantity) <= 0).length
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <InventorySummary
+        totalProducts={totalProducts}
+        totalQuantity={totalQuantity}
+        totalRetailValue={totalRetailValue}
+        totalCostValue={totalCostValue}
+        lowStockCount={lowStockCount}
+        outOfStockCount={outOfStockCount}
+        loading={loading}
+      />
+
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -188,13 +197,23 @@ export function ProductsList() {
           />
         </div>
         <Link href="/inventory/new">
-          <Button>
+          <Button className="bg-primary hover:bg-primary/90">
             <Plus className="mr-2 h-4 w-4" /> Add Product
           </Button>
         </Link>
       </div>
 
-      <div className="rounded-md border">
+      {loading ? (
+        <div className="flex justify-center p-8">Loading inventory...</div>
+      ) : products.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-60 border rounded-lg">
+          <p className="text-muted-foreground mb-4">No products found</p>
+          <Link href="/inventory/new">
+            <Button>Add your first product</Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -250,6 +269,7 @@ export function ProductsList() {
           </TableBody>
         </Table>
       </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>

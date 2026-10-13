@@ -1,15 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { getSupabaseServerClient } from "@/lib/supabase"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
+export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseServerClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize database client" }, { status: 500 })
+    }
+
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
     const startDate = searchParams.get("startDate")

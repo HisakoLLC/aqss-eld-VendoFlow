@@ -42,7 +42,9 @@ export function SalesSummary({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-green-600">{formatCurrency(paidAmount, currency)}</div>
-          <p className="text-xs text-muted-foreground">{((paidAmount / totalAmount) * 100).toFixed(1)}% of total</p>
+          <p className="text-xs text-muted-foreground">
+            {totalAmount > 0 ? ((paidAmount / totalAmount) * 100).toFixed(1) : "0.0"}% of total
+          </p>
         </CardContent>
       </Card>
       <Card>
@@ -51,7 +53,9 @@ export function SalesSummary({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-red-600">{formatCurrency(unpaidAmount, currency)}</div>
-          <p className="text-xs text-muted-foreground">{((unpaidAmount / totalAmount) * 100).toFixed(1)}% of total</p>
+          <p className="text-xs text-muted-foreground">
+            {totalAmount > 0 ? ((unpaidAmount / totalAmount) * 100).toFixed(1) : "0.0"}% of total
+          </p>
         </CardContent>
       </Card>
     </div>

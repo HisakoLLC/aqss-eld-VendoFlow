@@ -1,15 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { getSupabaseServerClient } from "@/lib/supabase"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
+export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = getSupabaseServerClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize database client" }, { status: 500 })
+    }
+
     const { id } = await params
     const { data, error } = await supabase.from("expenses").select("*").eq("id", id).single()
 
@@ -29,6 +29,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = getSupabaseServerClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize database client" }, { status: 500 })
+    }
+
     const { id } = await params
     const body = await request.json()
     const { title, category, amount, payment_method, expense_date, notes, attachment_url } = body
@@ -74,6 +79,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabase = getSupabaseServerClient()
+    if (!supabase) {
+      return NextResponse.json({ error: "Failed to initialize database client" }, { status: 500 })
+    }
+
     const { id } = await params
 
     const { data: existingExpense, error: fetchError } = await supabase

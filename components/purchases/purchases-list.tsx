@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { PurchaseDetails } from "./purchase-details"
+import { PurchasesSummary } from "./purchases-summary"
 import { formatCurrency } from "@/lib/utils"
 import {
   getPurchasesData,
@@ -125,23 +126,41 @@ export function PurchasesList() {
     }
   }
 
-  if (loading) {
-    return <div className="flex justify-center p-8">Loading purchases...</div>
-  }
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
 
-  if (purchases.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-60 border rounded-lg">
-        <p className="text-muted-foreground mb-4">No purchase records found</p>
-        <Link href="/purchases/new">
-          <Button>Create your first purchase</Button>
-        </Link>
-      </div>
-    )
-  }
+  const totalPurchases = purchases.length
+  const totalAmount = purchases.reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0)
+
+  const thisMonthPurchases = purchases.filter((p) => {
+    if (!p.purchase_date) return false
+    const d = new Date(p.purchase_date)
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear
+  })
+  const thisMonthAmount = thisMonthPurchases.reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0)
+  const thisMonthCount = thisMonthPurchases.length
+
+  const supplierSet = new Set(
+    purchases
+      .map((p) => p.supplier_name || p.supplier_id)
+      .filter(Boolean)
+  )
+  const uniqueSuppliersCount = supplierSet.size
+  const averageOrder = totalPurchases > 0 ? totalAmount / totalPurchases : 0
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <PurchasesSummary
+        totalPurchases={totalPurchases}
+        totalAmount={totalAmount}
+        thisMonthAmount={thisMonthAmount}
+        thisMonthCount={thisMonthCount}
+        uniqueSuppliersCount={uniqueSuppliersCount}
+        averageOrder={averageOrder}
+        loading={loading}
+      />
+
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -153,13 +172,23 @@ export function PurchasesList() {
           />
         </div>
         <Link href="/purchases/new">
-          <Button>
+          <Button className="bg-primary hover:bg-primary/90">
             <Plus className="mr-2 h-4 w-4" /> Add Purchase
           </Button>
         </Link>
       </div>
 
-      <div className="rounded-md border">
+      {loading ? (
+        <div className="flex justify-center p-8">Loading purchases...</div>
+      ) : purchases.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-60 border rounded-lg">
+          <p className="text-muted-foreground mb-4">No purchase records found</p>
+          <Link href="/purchases/new">
+            <Button>Create your first purchase</Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -200,6 +229,7 @@ export function PurchasesList() {
           </TableBody>
         </Table>
       </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!purchaseToDelete} onOpenChange={(open) => !open && setPurchaseToDelete(null)}>
