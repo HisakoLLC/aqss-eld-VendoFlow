@@ -203,9 +203,31 @@ export function PurchasesList() {
   const uniqueSuppliersCount = supplierSet.size
   const averageOrder = totalPurchases > 0 ? totalAmount / totalPurchases : 0
 
-  // Status Counts
+  // Status Counts and Totals
+  const paidAmount = purchases.reduce((sum, p) => {
+    if (p.amount_paid !== null && p.amount_paid !== undefined) {
+      return sum + Number(p.amount_paid)
+    }
+    const s = (p.payment_status || "Paid").toLowerCase().trim()
+    if (s === "paid" || s === "fully paid") {
+      return sum + (Number(p.total_amount) || 0)
+    }
+    return sum
+  }, 0)
+
+  const unpaidAmount = purchases.reduce((sum, p) => {
+    if (p.amount_due !== null && p.amount_due !== undefined) {
+      return sum + Number(p.amount_due)
+    }
+    const s = (p.payment_status || "Paid").toLowerCase().trim()
+    if (s === "paid" || s === "fully paid") {
+      return sum
+    }
+    return sum + (Number(p.total_amount) || 0)
+  }, 0)
+
   const paidCount = purchases.filter((p) => {
-    const s = (p.payment_status || "Paid").toLowerCase()
+    const s = (p.payment_status || "Paid").toLowerCase().trim()
     return (s === "paid" || s === "fully paid") && !s.includes("part") && !s.includes("unpaid")
   }).length
 
@@ -220,8 +242,8 @@ export function PurchasesList() {
   }).length
 
   const unpaidCount = purchases.filter((p) => {
-    const s = (p.payment_status || "").toLowerCase()
-    return s.includes("unpaid")
+    const s = (p.payment_status || "").toLowerCase().trim()
+    return s.includes("unpaid") || s.includes("credit") || s.includes("agree") || s.includes("part")
   }).length
 
   return (
@@ -229,6 +251,10 @@ export function PurchasesList() {
       <PurchasesSummary
         totalPurchases={totalPurchases}
         totalAmount={totalAmount}
+        paidAmount={paidAmount}
+        paidCount={paidCount}
+        unpaidAmount={unpaidAmount}
+        unpaidCount={unpaidCount}
         thisMonthAmount={thisMonthAmount}
         thisMonthCount={thisMonthCount}
         uniqueSuppliersCount={uniqueSuppliersCount}

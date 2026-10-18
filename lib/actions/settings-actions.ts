@@ -7,14 +7,13 @@ export type StoreInfo = {
   email: string
 }
 
-// Hardcoded store info - no database fetching
+// Default store info for AQSS Flow Limited
 export async function getStoreSettings(): Promise<StoreInfo> {
-  // Return hardcoded values directly without trying to fetch from database
   return {
     name: "AQSS Flow Limited",
-    address: "Eastleigh, Nairobi",
-    phone: "Phone: +254799964646",
-    email: "Email: aqssflow@gmail.com",
+    address: "Eastleigh, Nairobi, Kenya",
+    phone: "+254 799 964 646",
+    email: "aqssflow@gmail.com",
   }
 }
 

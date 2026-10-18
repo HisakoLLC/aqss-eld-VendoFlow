@@ -65,22 +65,22 @@ export async function initializeDatabase() {
     const defaultSettings = [
       {
         key: "store_name",
-        value: "VendaFlow POS",
+        value: "AQSS Flow Limited",
         description: "Store name setting",
       },
       {
         key: "store_address",
-        value: "123 Main Street, City, Country",
+        value: "Eastleigh, Nairobi, Kenya",
         description: "Store address setting",
       },
       {
         key: "store_phone",
-        value: "Phone: +1 234 567 890",
+        value: "+254 799 964 646",
         description: "Store phone setting",
       },
       {
         key: "store_email",
-        value: "Email: info@vendaflow.com",
+        value: "aqssflow@gmail.com",
         description: "Store email setting",
       },
     ]

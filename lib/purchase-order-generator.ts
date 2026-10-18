@@ -17,18 +17,59 @@ export const DEFAULT_STORE_INFO: StoreInfo = {
   email: "aqssflow@gmail.com",
 }
 
+function cleanPrefix(val: string, prefixRegex: RegExp): string {
+  return val.replace(prefixRegex, "").trim()
+}
+
+function isPlaceholder(val?: string | null): boolean {
+  if (!val) return true
+  const s = val.trim().toLowerCase()
+  if (!s) return true
+  return (
+    s === "my store" ||
+    s === "vendaflow pos" ||
+    s === "vendaflow" ||
+    s === "store name" ||
+    s.includes("123 your street") ||
+    s.includes("your city") ||
+    s.includes("123 main street") ||
+    s.includes("city, country") ||
+    s.includes("store@example.com") ||
+    s.includes("info@vendaflow.com") ||
+    s.includes("700 000 000") ||
+    s.includes("234 567 890")
+  )
+}
+
+export function sanitizeStoreInfo(info?: Partial<StoreInfo>): StoreInfo {
+  const rawName = info?.name?.trim()
+  const rawAddress = info?.address?.trim()
+  let rawPhone = info?.phone?.trim()
+  let rawEmail = info?.email?.trim()
+
+  const name = !rawName || isPlaceholder(rawName) ? DEFAULT_STORE_INFO.name : rawName
+  const address = !rawAddress || isPlaceholder(rawAddress) ? DEFAULT_STORE_INFO.address : rawAddress
+
+  if (rawPhone) {
+    rawPhone = cleanPrefix(rawPhone, /^(phone|tel|mobile):\s*/i)
+  }
+  const phone = !rawPhone || isPlaceholder(rawPhone) ? DEFAULT_STORE_INFO.phone : rawPhone
+
+  if (rawEmail) {
+    rawEmail = cleanPrefix(rawEmail, /^(email|mail):\s*/i)
+  }
+  const email = !rawEmail || isPlaceholder(rawEmail) ? DEFAULT_STORE_INFO.email : rawEmail
+
+  return { name, address, phone, email }
+}
+
 export async function getStoreInfo(): Promise<StoreInfo> {
   if (typeof window !== "undefined") {
     try {
       const res = await fetch("/api/settings")
       if (res.ok) {
         const data = await res.json()
-        return {
-          name: data.name || DEFAULT_STORE_INFO.name,
-          address: data.address || DEFAULT_STORE_INFO.address,
-          phone: data.phone || DEFAULT_STORE_INFO.phone,
-          email: data.email || DEFAULT_STORE_INFO.email,
-        }
+        return sanitizeStoreInfo(data)
       }
     } catch (e) {
       console.warn("Failed to fetch store settings for PO, using defaults:", e)
@@ -60,10 +101,10 @@ export async function generatePurchaseOrderPDF({
       resolvedStore = DEFAULT_STORE_INFO
     }
   }
-  const store: StoreInfo = {
+  const store = sanitizeStoreInfo({
     ...resolvedStore,
     ...customStoreInfo,
-  }
+  })
 
   // Standard A4 dimensions in mm
   const doc = new jsPDF({

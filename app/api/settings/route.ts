@@ -1,14 +1,38 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase"
 
+function isPlaceholder(val?: string | null): boolean {
+  if (!val) return true
+  const s = val.trim().toLowerCase()
+  if (!s) return true
+  return (
+    s === "my store" ||
+    s === "vendaflow pos" ||
+    s === "vendaflow" ||
+    s === "store name" ||
+    s.includes("123 your street") ||
+    s.includes("your city") ||
+    s.includes("123 main street") ||
+    s.includes("city, country") ||
+    s.includes("store@example.com") ||
+    s.includes("info@vendaflow.com") ||
+    s.includes("700 000 000") ||
+    s.includes("234 567 890")
+  )
+}
+
+function cleanPrefix(val: string, prefixRegex: RegExp): string {
+  return val.replace(prefixRegex, "").trim()
+}
+
 export async function GET() {
   try {
-    // Default store info in case of errors
+    // Default store info
     const defaultStoreInfo = {
       name: "AQSS Flow Limited",
-      address: "Eastleigh, Nairobi",
-      phone: "Phone: +254799964646",
-      email: "Email: aqssflow@gmail.com",
+      address: "Eastleigh, Nairobi, Kenya",
+      phone: "+254 799 964 646",
+      email: "aqssflow@gmail.com",
     }
 
     // Get the server client with service role key
@@ -30,12 +54,19 @@ export async function GET() {
         return NextResponse.json(defaultStoreInfo)
       }
 
-      // Create a store info object from settings
+      const rawName = data?.find((s) => s.key === "store_name")?.value
+      const rawAddress = data?.find((s) => s.key === "store_address")?.value
+      let rawPhone = data?.find((s) => s.key === "store_phone")?.value
+      let rawEmail = data?.find((s) => s.key === "store_email")?.value
+
+      if (rawPhone) rawPhone = cleanPrefix(rawPhone, /^(phone|tel|mobile):\s*/i)
+      if (rawEmail) rawEmail = cleanPrefix(rawEmail, /^(email|mail):\s*/i)
+
       const storeInfo = {
-        name: data?.find((s) => s.key === "store_name")?.value || defaultStoreInfo.name,
-        address: data?.find((s) => s.key === "store_address")?.value || defaultStoreInfo.address,
-        phone: data?.find((s) => s.key === "store_phone")?.value || defaultStoreInfo.phone,
-        email: data?.find((s) => s.key === "store_email")?.value || defaultStoreInfo.email,
+        name: rawName && !isPlaceholder(rawName) ? rawName : defaultStoreInfo.name,
+        address: rawAddress && !isPlaceholder(rawAddress) ? rawAddress : defaultStoreInfo.address,
+        phone: rawPhone && !isPlaceholder(rawPhone) ? rawPhone : defaultStoreInfo.phone,
+        email: rawEmail && !isPlaceholder(rawEmail) ? rawEmail : defaultStoreInfo.email,
       }
 
       return NextResponse.json(storeInfo)
@@ -48,9 +79,9 @@ export async function GET() {
     return NextResponse.json(
       {
         name: "AQSS Flow Limited",
-        address: "Eastleigh, Nairobi",
-        phone: "Phone: +254799964646",
-        email: "Email: aqssflow@gmail.com",
+        address: "Eastleigh, Nairobi, Kenya",
+        phone: "+254 799 964 646",
+        email: "aqssflow@gmail.com",
       },
       { status: 500 },
     )
