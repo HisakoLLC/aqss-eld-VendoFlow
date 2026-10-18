@@ -9,6 +9,8 @@ import { toast } from "@/components/ui/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
 import { v4 as uuidv4 } from "uuid"
 
+import { formatCurrency } from "@/lib/utils"
+
 export default function NewPurchasePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -16,6 +18,10 @@ export default function NewPurchasePage() {
     reference_number: "",
     purchase_date: new Date().toISOString().split("T")[0],
     supplier_name: "",
+    payment_status: "Paid",
+    payment_method: "Cash",
+    amount_paid: "",
+    agreement_terms: "",
     notes: "",
   })
   const [items, setItems] = useState([
@@ -193,15 +199,54 @@ export default function NewPurchasePage() {
         }
       }
 
+      // Calculate payment amounts
+      let amountPaidNum = totalAmount
+      let amountDueNum = 0
+
+      if (formData.payment_status === "Paid") {
+        amountPaidNum = totalAmount
+        amountDueNum = 0
+      } else if (formData.payment_status === "Unpaid") {
+        amountPaidNum = 0
+        amountDueNum = totalAmount
+      } else if (formData.payment_status === "Partial") {
+        amountPaidNum = Math.min(totalAmount, Math.max(0, Number(formData.amount_paid) || 0))
+        amountDueNum = Math.max(0, totalAmount - amountPaidNum)
+      } else if (formData.payment_status === "Credit" || formData.payment_status === "Agreement") {
+        amountPaidNum = Math.min(totalAmount, Math.max(0, Number(formData.amount_paid) || 0))
+        amountDueNum = Math.max(0, totalAmount - amountPaidNum)
+      }
+
       // Create purchase record
-      const { error: purchaseError } = await supabase.from("purchases").insert({
+      const purchasePayload: any = {
         id: purchaseId,
         reference_number: formData.reference_number,
         purchase_date: formData.purchase_date,
         supplier_id: supplier_id,
         notes: formData.notes || null,
         total_amount: totalAmount,
-      })
+        payment_status: formData.payment_status,
+        payment_method: formData.payment_method,
+        amount_paid: amountPaidNum,
+        amount_due: amountDueNum,
+        agreement_terms: formData.agreement_terms || null,
+      }
+
+      let { error: purchaseError } = await supabase.from("purchases").insert(purchasePayload)
+
+      // Fallback if database columns haven't been migrated yet
+      if (purchaseError && (purchaseError.message?.includes("column") || (purchaseError as any).code === "42703")) {
+        console.warn("Retrying purchase insert without optional payment columns:", purchaseError)
+        const fallbackRes = await supabase.from("purchases").insert({
+          id: purchaseId,
+          reference_number: formData.reference_number,
+          purchase_date: formData.purchase_date,
+          supplier_id: supplier_id,
+          notes: formData.notes || null,
+          total_amount: totalAmount,
+        })
+        purchaseError = fallbackRes.error
+      }
 
       if (purchaseError) {
         throw purchaseError
@@ -348,6 +393,112 @@ export default function NewPurchasePage() {
               </div>
             </div>
 
+            {/* Payment & Order Terms */}
+            <div className="rounded-lg border p-4 bg-muted/20 space-y-4">
+              <h3 className="text-base font-semibold">Payment & Order Terms</h3>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label htmlFor="payment_status" className="text-sm font-medium">
+                    Payment Status
+                  </label>
+                  <select
+                    id="payment_status"
+                    name="payment_status"
+                    value={formData.payment_status}
+                    onChange={handleInputChange}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="Paid">Paid (Fully Paid)</option>
+                    <option value="Partial">Partial (Partially Paid)</option>
+                    <option value="Credit">On Credit (Pay Later)</option>
+                    <option value="Agreement">Credit Agreement (Contract Terms)</option>
+                    <option value="Unpaid">Unpaid</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="payment_method" className="text-sm font-medium">
+                    Payment Method
+                  </label>
+                  <select
+                    id="payment_method"
+                    name="payment_method"
+                    value={formData.payment_method}
+                    onChange={handleInputChange}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="M-Pesa">M-Pesa</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Credit Agreement">Credit Agreement</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {formData.payment_status === "Partial" && (
+                  <div className="space-y-2">
+                    <label htmlFor="amount_paid" className="text-sm font-medium">
+                      Amount Paid (KES)
+                    </label>
+                    <input
+                      id="amount_paid"
+                      name="amount_paid"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.amount_paid}
+                      onChange={handleInputChange}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      placeholder="Enter amount paid"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Balance Due:{" "}
+                      <span className="font-semibold text-rose-600">
+                        {formatCurrency(Math.max(0, calculateTotal() - (Number(formData.amount_paid) || 0)))}
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                {(formData.payment_status === "Credit" || formData.payment_status === "Agreement") && (
+                  <>
+                    <div className="space-y-2">
+                      <label htmlFor="amount_paid" className="text-sm font-medium">
+                        Initial Deposit / Amount Paid (Optional)
+                      </label>
+                      <input
+                        id="amount_paid"
+                        name="amount_paid"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.amount_paid}
+                        onChange={handleInputChange}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label htmlFor="agreement_terms" className="text-sm font-medium">
+                        Credit / Agreement Terms & Due Date
+                      </label>
+                      <input
+                        id="agreement_terms"
+                        name="agreement_terms"
+                        type="text"
+                        value={formData.agreement_terms}
+                        onChange={handleInputChange}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        placeholder="e.g. Net 30 days, Balance payable upon delivery, or due on specific date"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Purchase Items</h3>
@@ -430,10 +581,24 @@ export default function NewPurchasePage() {
                 ))}
               </div>
 
-              <div className="flex justify-end pt-4 border-t">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-4 border-t gap-4">
+                <div className="text-sm text-muted-foreground">
+                  Payment Status: <span className="font-semibold text-foreground">{formData.payment_status}</span> via{" "}
+                  <span className="font-semibold text-foreground">{formData.payment_method}</span>
+                </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
-                  <p className="text-2xl font-bold">KES {calculateTotal().toFixed(2)}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Order Amount</p>
+                  <p className="text-2xl font-bold">{formatCurrency(calculateTotal())}</p>
+                  {formData.payment_status === "Partial" && (
+                    <p className="text-xs text-rose-600 font-medium mt-0.5">
+                      Remaining Due: {formatCurrency(Math.max(0, calculateTotal() - (Number(formData.amount_paid) || 0)))}
+                    </p>
+                  )}
+                  {(formData.payment_status === "Credit" || formData.payment_status === "Agreement") && (
+                    <p className="text-xs text-indigo-600 font-medium mt-0.5">
+                      On Credit: {formatCurrency(Math.max(0, calculateTotal() - (Number(formData.amount_paid) || 0)))}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

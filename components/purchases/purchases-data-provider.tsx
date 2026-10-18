@@ -15,6 +15,14 @@ export type Purchase = {
   notes: string | null
   supplier_id: string | null
   supplier_name?: string
+  supplier_phone?: string | null
+  supplier_email?: string | null
+  supplier_address?: string | null
+  payment_status?: string | null
+  payment_method?: string | null
+  amount_paid?: number | null
+  amount_due?: number | null
+  agreement_terms?: string | null
   created_at: string
   updated_at: string
 }
@@ -50,7 +58,10 @@ export async function getPurchasesData() {
         *,
         suppliers (
           id,
-          name
+          name,
+          phone,
+          email,
+          address
         )
       `)
       .order("purchase_date", { ascending: false })
@@ -60,17 +71,40 @@ export async function getPurchasesData() {
     }
 
     // Transform data to match the Purchase type
-    const purchases: Purchase[] = data.map((purchase) => ({
-      id: purchase.id,
-      reference_number: purchase.reference_number,
-      purchase_date: purchase.purchase_date,
-      total_amount: purchase.total_amount,
-      notes: purchase.notes,
-      supplier_id: purchase.supplier_id,
-      supplier_name: purchase.suppliers?.name || "Unknown Supplier",
-      created_at: purchase.created_at,
-      updated_at: purchase.updated_at,
-    }))
+    const purchases: Purchase[] = data.map((purchase: any) => {
+      const totalAmount = Number(purchase.total_amount) || 0
+      const paymentStatus = purchase.payment_status || "Paid"
+      const amountPaid =
+        purchase.amount_paid !== null && purchase.amount_paid !== undefined
+          ? Number(purchase.amount_paid)
+          : paymentStatus === "Paid"
+            ? totalAmount
+            : 0
+      const amountDue =
+        purchase.amount_due !== null && purchase.amount_due !== undefined
+          ? Number(purchase.amount_due)
+          : Math.max(0, totalAmount - amountPaid)
+
+      return {
+        id: purchase.id,
+        reference_number: purchase.reference_number,
+        purchase_date: purchase.purchase_date,
+        total_amount: totalAmount,
+        notes: purchase.notes,
+        supplier_id: purchase.supplier_id,
+        supplier_name: purchase.suppliers?.name || "Unknown Supplier",
+        supplier_phone: purchase.suppliers?.phone || null,
+        supplier_email: purchase.suppliers?.email || null,
+        supplier_address: purchase.suppliers?.address || null,
+        payment_status: paymentStatus,
+        payment_method: purchase.payment_method || "Cash",
+        amount_paid: amountPaid,
+        amount_due: amountDue,
+        agreement_terms: purchase.agreement_terms || null,
+        created_at: purchase.created_at,
+        updated_at: purchase.updated_at,
+      }
+    })
 
     return purchases
   } catch (error) {
@@ -93,13 +127,16 @@ export async function getPurchaseById(id: string) {
     })
 
     // Get purchase details
-    const { data: purchase, error: purchaseError } = await supabase
+    const { data: purchaseData, error: purchaseError } = await supabase
       .from("purchases")
       .select(`
         *,
         suppliers (
           id,
-          name
+          name,
+          phone,
+          email,
+          address
         )
       `)
       .eq("id", id)
@@ -108,6 +145,20 @@ export async function getPurchaseById(id: string) {
     if (purchaseError) {
       throw purchaseError
     }
+
+    const purchase: any = purchaseData
+    const totalAmount = Number(purchase.total_amount) || 0
+    const paymentStatus = purchase.payment_status || "Paid"
+    const amountPaid =
+      purchase.amount_paid !== null && purchase.amount_paid !== undefined
+        ? Number(purchase.amount_paid)
+        : paymentStatus === "Paid"
+          ? totalAmount
+          : 0
+    const amountDue =
+      purchase.amount_due !== null && purchase.amount_due !== undefined
+        ? Number(purchase.amount_due)
+        : Math.max(0, totalAmount - amountPaid)
 
     // Get purchase items
     const { data: items, error: itemsError } = await supabase
@@ -127,7 +178,7 @@ export async function getPurchaseById(id: string) {
     }
 
     // Transform purchase items
-    const purchaseItems: PurchaseItem[] = items.map((item) => ({
+    const purchaseItems: PurchaseItem[] = (items || []).map((item: any) => ({
       id: item.id,
       purchase_id: item.purchase_id,
       product_id: item.product_id,
@@ -143,10 +194,18 @@ export async function getPurchaseById(id: string) {
         id: purchase.id,
         reference_number: purchase.reference_number,
         purchase_date: purchase.purchase_date,
-        total_amount: purchase.total_amount,
+        total_amount: totalAmount,
         notes: purchase.notes,
         supplier_id: purchase.supplier_id,
         supplier_name: purchase.suppliers?.name || "Unknown Supplier",
+        supplier_phone: purchase.suppliers?.phone || null,
+        supplier_email: purchase.suppliers?.email || null,
+        supplier_address: purchase.suppliers?.address || null,
+        payment_status: paymentStatus,
+        payment_method: purchase.payment_method || "Cash",
+        amount_paid: amountPaid,
+        amount_due: amountDue,
+        agreement_terms: purchase.agreement_terms || null,
         created_at: purchase.created_at,
         updated_at: purchase.updated_at,
       },

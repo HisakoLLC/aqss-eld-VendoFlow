@@ -115,6 +115,75 @@ export async function GET() {
       )
     }
 
+    // 4. Add payment columns to purchases table if they don't exist
+    console.log("API: Adding payment columns to purchases table if needed...")
+    try {
+      const { error: alterPurchasesError } = await supabase.rpc("execute_sql", {
+        sql_query: `
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT FROM information_schema.columns 
+              WHERE table_schema = 'public' 
+              AND table_name = 'purchases' 
+              AND column_name = 'payment_status'
+            ) THEN
+              ALTER TABLE purchases ADD COLUMN payment_status VARCHAR(50) DEFAULT 'Paid';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT FROM information_schema.columns 
+              WHERE table_schema = 'public' 
+              AND table_name = 'purchases' 
+              AND column_name = 'payment_method'
+            ) THEN
+              ALTER TABLE purchases ADD COLUMN payment_method VARCHAR(50) DEFAULT 'Cash';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT FROM information_schema.columns 
+              WHERE table_schema = 'public' 
+              AND table_name = 'purchases' 
+              AND column_name = 'amount_paid'
+            ) THEN
+              ALTER TABLE purchases ADD COLUMN amount_paid NUMERIC DEFAULT NULL;
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT FROM information_schema.columns 
+              WHERE table_schema = 'public' 
+              AND table_name = 'purchases' 
+              AND column_name = 'amount_due'
+            ) THEN
+              ALTER TABLE purchases ADD COLUMN amount_due NUMERIC DEFAULT 0;
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT FROM information_schema.columns 
+              WHERE table_schema = 'public' 
+              AND table_name = 'purchases' 
+              AND column_name = 'agreement_terms'
+            ) THEN
+              ALTER TABLE purchases ADD COLUMN agreement_terms TEXT DEFAULT NULL;
+            END IF;
+          END $$;
+
+          UPDATE purchases 
+          SET 
+            payment_status = COALESCE(NULLIF(payment_status, ''), 'Paid'),
+            amount_paid = COALESCE(amount_paid, total_amount),
+            amount_due = GREATEST(0, total_amount - COALESCE(amount_paid, total_amount))
+          WHERE payment_status IS NULL OR payment_status = '' OR amount_paid IS NULL;
+        `,
+      })
+
+      if (alterPurchasesError) {
+        console.error("API: Error updating purchases table:", alterPurchasesError)
+      }
+    } catch (error) {
+      console.error("API: Exception updating purchases table:", error)
+    }
+
     console.log("API: Database initialization completed successfully")
     return NextResponse.json({ success: true })
   } catch (error) {

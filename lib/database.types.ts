@@ -89,6 +89,11 @@ export interface Database {
           purchase_date: string
           total_amount: number
           notes: string | null
+          payment_status: string | null
+          payment_method: string | null
+          amount_paid: number | null
+          amount_due: number | null
+          agreement_terms: string | null
           created_at: string
           updated_at: string
         }
@@ -99,6 +104,11 @@ export interface Database {
           purchase_date?: string
           total_amount: number
           notes?: string | null
+          payment_status?: string | null
+          payment_method?: string | null
+          amount_paid?: number | null
+          amount_due?: number | null
+          agreement_terms?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -109,6 +119,11 @@ export interface Database {
           purchase_date?: string
           total_amount?: number
           notes?: string | null
+          payment_status?: string | null
+          payment_method?: string | null
+          amount_paid?: number | null
+          amount_due?: number | null
+          agreement_terms?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/components/ui/use-toast"
-import { Edit, ArrowLeft, Trash2 } from "lucide-react"
+import { Edit, ArrowLeft, Trash2, FileDown, Loader2 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { getPurchaseById, deletePurchase } from "@/components/purchases/purchases-data-provider"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { downloadPurchaseOrderPDF } from "@/lib/purchase-order-generator"
 import {
   Dialog,
   DialogContent,
@@ -23,9 +25,10 @@ export default function PurchaseDetailsPage() {
   const params = useParams()
   const router = useRouter()
   const purchaseId = params.id as string
-  const [purchase, setPurchase] = useState(null)
-  const [items, setItems] = useState([])
+  const [purchase, setPurchase] = useState<any>(null)
+  const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
@@ -63,6 +66,30 @@ export default function PurchaseDetailsPage() {
       router.push("/purchases")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDownloadPO = async () => {
+    if (!purchase) return
+    try {
+      setDownloading(true)
+      await downloadPurchaseOrderPDF({
+        purchase,
+        items,
+      })
+      toast({
+        title: "Purchase Order Downloaded",
+        description: `PO #${purchase.reference_number} downloaded successfully.`,
+      })
+    } catch (error) {
+      console.error("Error generating purchase order PDF:", error)
+      toast({
+        title: "Download Failed",
+        description: "Failed to generate Purchase Order PDF.",
+        variant: "destructive",
+      })
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -104,15 +131,36 @@ export default function PurchaseDetailsPage() {
     return <div className="flex justify-center p-8">Purchase not found</div>
   }
 
+  const totalAmount = Number(purchase.total_amount) || 0
+  const paymentStatus = purchase.payment_status || "Paid"
+  const amountPaid =
+    purchase.amount_paid !== null && purchase.amount_paid !== undefined
+      ? Number(purchase.amount_paid)
+      : paymentStatus === "Paid"
+        ? totalAmount
+        : 0
+  const amountDue =
+    purchase.amount_due !== null && purchase.amount_due !== undefined
+      ? Number(purchase.amount_due)
+      : Math.max(0, totalAmount - amountPaid)
+
   return (
     <div className="flex flex-col space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <Button variant="outline" onClick={() => router.push("/purchases")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Purchases
         </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setDeleteDialogOpen(true)} className="text-red-500">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleDownloadPO} disabled={downloading}>
+            {downloading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
+            ) : (
+              <FileDown className="mr-2 h-4 w-4 text-primary" />
+            )}
+            Download Purchase Order (PDF)
+          </Button>
+          <Button variant="outline" onClick={() => setDeleteDialogOpen(true)} className="text-red-500 hover:text-red-600">
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
           </Button>
@@ -124,9 +172,10 @@ export default function PurchaseDetailsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Card 1: Purchase Order Info */}
         <Card>
           <CardHeader>
-            <CardTitle>Purchase Details</CardTitle>
+            <CardTitle>Purchase Order</CardTitle>
             <CardDescription>Reference #{purchase.reference_number}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -137,16 +186,62 @@ export default function PurchaseDetailsPage() {
               </div>
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">Supplier</dt>
-                <dd className="text-sm">{purchase.supplier_name}</dd>
+                <dd className="text-sm font-medium">{purchase.supplier_name}</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-muted-foreground">Total Amount</dt>
-                <dd className="text-sm font-bold">{formatCurrency(purchase.total_amount)}</dd>
+                <dt className="text-sm font-medium text-muted-foreground">Total Order Amount</dt>
+                <dd className="text-base font-bold">{formatCurrency(totalAmount)}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Items Count</dt>
+                <dd className="text-sm">{items.length} product{items.length === 1 ? "" : "s"}</dd>
               </div>
               {purchase.notes && (
                 <div className="col-span-2">
                   <dt className="text-sm font-medium text-muted-foreground">Notes</dt>
-                  <dd className="text-sm">{purchase.notes}</dd>
+                  <dd className="text-sm text-foreground">{purchase.notes}</dd>
+                </div>
+              )}
+            </dl>
+          </CardContent>
+        </Card>
+
+        {/* Card 2: Payment & Terms Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment & Terms</CardTitle>
+            <CardDescription>Payment status and financial reconciliation</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-4">
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Payment Status</dt>
+                <dd className="mt-1">
+                  <StatusBadge status={paymentStatus} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Payment Method</dt>
+                <dd className="text-sm font-medium">{purchase.payment_method || "Cash"}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Amount Paid</dt>
+                <dd className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(amountPaid)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Balance Due</dt>
+                <dd className={`text-sm font-bold ${amountDue > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}>
+                  {formatCurrency(amountDue)}
+                </dd>
+              </div>
+              {purchase.agreement_terms && (
+                <div className="col-span-2">
+                  <dt className="text-sm font-medium text-muted-foreground">Credit / Agreement Terms</dt>
+                  <dd className="text-sm text-foreground bg-muted/40 p-2.5 rounded-md border mt-1">
+                    {purchase.agreement_terms}
+                  </dd>
                 </div>
               )}
             </dl>

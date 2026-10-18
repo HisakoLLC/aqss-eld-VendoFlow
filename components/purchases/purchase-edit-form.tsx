@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/components/ui/use-toast"
 import { Trash2, Plus, Loader2, Save } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 
 export type PurchaseEditFormProps = {
   purchaseId?: string
@@ -33,6 +34,10 @@ export function PurchaseEditForm({ purchaseId, onSuccess, onCancel }: PurchaseEd
     supplier_id: "",
     reference_number: "",
     notes: "",
+    payment_status: "Paid",
+    payment_method: "Cash",
+    amount_paid: "",
+    agreement_terms: "",
   })
   const supabase = getSupabaseBrowserClient()
   const isEditing = !!purchaseId
@@ -116,10 +121,22 @@ export function PurchaseEditForm({ purchaseId, onSuccess, onCancel }: PurchaseEd
       if (itemsError) throw itemsError
 
       if (purchase) {
+        const pStatus = (purchase as any).payment_status || "Paid"
+        const pAmountPaid =
+          (purchase as any).amount_paid !== null && (purchase as any).amount_paid !== undefined
+            ? String((purchase as any).amount_paid)
+            : pStatus === "Paid"
+              ? String(purchase.total_amount)
+              : ""
+
         setFormData({
           supplier_id: purchase.supplier_id || "",
           reference_number: purchase.reference_number,
           notes: purchase.notes || "",
+          payment_status: pStatus,
+          payment_method: (purchase as any).payment_method || "Cash",
+          amount_paid: pAmountPaid,
+          agreement_terms: (purchase as any).agreement_terms || "",
         })
       }
 
@@ -232,18 +249,58 @@ export function PurchaseEditForm({ purchaseId, onSuccess, onCancel }: PurchaseEd
     setLoading(true)
 
     try {
+      const totalAmount = calculateTotal()
+      let amountPaidNum = totalAmount
+      let amountDueNum = 0
+
+      if (formData.payment_status === "Paid") {
+        amountPaidNum = totalAmount
+        amountDueNum = 0
+      } else if (formData.payment_status === "Unpaid") {
+        amountPaidNum = 0
+        amountDueNum = totalAmount
+      } else if (formData.payment_status === "Partial") {
+        amountPaidNum = Math.min(totalAmount, Math.max(0, Number(formData.amount_paid) || 0))
+        amountDueNum = Math.max(0, totalAmount - amountPaidNum)
+      } else if (formData.payment_status === "Credit" || formData.payment_status === "Agreement") {
+        amountPaidNum = Math.min(totalAmount, Math.max(0, Number(formData.amount_paid) || 0))
+        amountDueNum = Math.max(0, totalAmount - amountPaidNum)
+      }
+
       if (isEditing) {
         // Update existing purchase
-        const { error: purchaseError } = await supabase
+        const updatePayload: any = {
+          supplier_id: formData.supplier_id,
+          reference_number: formData.reference_number,
+          total_amount: totalAmount,
+          notes: formData.notes || null,
+          payment_status: formData.payment_status,
+          payment_method: formData.payment_method,
+          amount_paid: amountPaidNum,
+          amount_due: amountDueNum,
+          agreement_terms: formData.agreement_terms || null,
+          updated_at: new Date().toISOString(),
+        }
+
+        let { error: purchaseError } = await supabase
           .from("purchases")
-          .update({
-            supplier_id: formData.supplier_id,
-            reference_number: formData.reference_number,
-            total_amount: calculateTotal(),
-            notes: formData.notes || null,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq("id", purchaseId)
+
+        // Fallback if payment columns don't exist yet
+        if (purchaseError && (purchaseError.message?.includes("column") || (purchaseError as any).code === "42703")) {
+          const fallbackRes = await supabase
+            .from("purchases")
+            .update({
+              supplier_id: formData.supplier_id,
+              reference_number: formData.reference_number,
+              total_amount: totalAmount,
+              notes: formData.notes || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", purchaseId)
+          purchaseError = fallbackRes.error
+        }
 
         if (purchaseError) throw purchaseError
 
@@ -368,16 +425,38 @@ export function PurchaseEditForm({ purchaseId, onSuccess, onCancel }: PurchaseEd
         })
       } else {
         // Create new purchase
-        const { data: purchase, error: purchaseError } = await supabase
+        const insertPayload: any = {
+          supplier_id: formData.supplier_id,
+          reference_number: formData.reference_number,
+          total_amount: totalAmount,
+          notes: formData.notes || null,
+          payment_status: formData.payment_status,
+          payment_method: formData.payment_method,
+          amount_paid: amountPaidNum,
+          amount_due: amountDueNum,
+          agreement_terms: formData.agreement_terms || null,
+        }
+
+        let { data: purchase, error: purchaseError } = await supabase
           .from("purchases")
-          .insert({
-            supplier_id: formData.supplier_id,
-            reference_number: formData.reference_number,
-            total_amount: calculateTotal(),
-            notes: formData.notes || null,
-          })
+          .insert(insertPayload)
           .select()
           .single()
+
+        if (purchaseError && (purchaseError.message?.includes("column") || (purchaseError as any).code === "42703")) {
+          const fallbackRes = await supabase
+            .from("purchases")
+            .insert({
+              supplier_id: formData.supplier_id,
+              reference_number: formData.reference_number,
+              total_amount: totalAmount,
+              notes: formData.notes || null,
+            })
+            .select()
+            .single()
+          purchase = fallbackRes.data
+          purchaseError = fallbackRes.error
+        }
 
         if (purchaseError) throw purchaseError
 
@@ -525,8 +604,8 @@ export function PurchaseEditForm({ purchaseId, onSuccess, onCancel }: PurchaseEd
                         </div>
                       </TableCell>
                       <TableCell>{item.quantity}</TableCell>
-                      <TableCell>${item.unit_cost.toFixed(2)}</TableCell>
-                      <TableCell>${item.total_cost.toFixed(2)}</TableCell>
+                      <TableCell>{formatCurrency(item.unit_cost)}</TableCell>
+                      <TableCell className="font-medium">{formatCurrency(item.total_cost)}</TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => removeItem(index)}>
                           <Trash2 className="h-4 w-4" />
@@ -548,8 +627,8 @@ export function PurchaseEditForm({ purchaseId, onSuccess, onCancel }: PurchaseEd
 
         <Card>
           <CardHeader>
-            <CardTitle>Purchase Details</CardTitle>
-            <CardDescription>Enter supplier and reference information</CardDescription>
+            <CardTitle>Purchase & Payment Details</CardTitle>
+            <CardDescription>Enter supplier, reference and payment status</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -579,6 +658,99 @@ export function PurchaseEditForm({ purchaseId, onSuccess, onCancel }: PurchaseEd
               />
             </div>
 
+            {/* Payment Status */}
+            <div className="space-y-2">
+              <Label htmlFor="payment_status">Payment Status</Label>
+              <Select
+                value={formData.payment_status}
+                onValueChange={(value) => handleSelectChange("payment_status", value)}
+              >
+                <SelectTrigger id="payment_status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Paid">Paid (Fully Paid)</SelectItem>
+                  <SelectItem value="Partial">Partial (Partially Paid)</SelectItem>
+                  <SelectItem value="Credit">On Credit (Pay Later)</SelectItem>
+                  <SelectItem value="Agreement">Credit Agreement (Contract Terms)</SelectItem>
+                  <SelectItem value="Unpaid">Unpaid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Payment Method */}
+            <div className="space-y-2">
+              <Label htmlFor="payment_method">Payment Method</Label>
+              <Select
+                value={formData.payment_method}
+                onValueChange={(value) => handleSelectChange("payment_method", value)}
+              >
+                <SelectTrigger id="payment_method">
+                  <SelectValue placeholder="Select method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="M-Pesa">M-Pesa</SelectItem>
+                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
+                  <SelectItem value="Credit Agreement">Credit Agreement</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Partial Payment Amount */}
+            {formData.payment_status === "Partial" && (
+              <div className="space-y-2">
+                <Label htmlFor="amount_paid">Amount Paid (KES) *</Label>
+                <Input
+                  id="amount_paid"
+                  name="amount_paid"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Enter amount paid"
+                  value={formData.amount_paid}
+                  onChange={handleChange}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Balance Due:{" "}
+                  <span className="font-semibold text-rose-600">
+                    {formatCurrency(Math.max(0, calculateTotal() - (Number(formData.amount_paid) || 0)))}
+                  </span>
+                </p>
+              </div>
+            )}
+
+            {/* Credit or Agreement */}
+            {(formData.payment_status === "Credit" || formData.payment_status === "Agreement") && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="amount_paid">Initial Deposit / Amount Paid (Optional)</Label>
+                  <Input
+                    id="amount_paid"
+                    name="amount_paid"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.amount_paid}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="agreement_terms">Credit / Agreement Terms & Due Date</Label>
+                  <Input
+                    id="agreement_terms"
+                    name="agreement_terms"
+                    placeholder="e.g. Net 30 days, or due on specific date"
+                    value={formData.agreement_terms}
+                    onChange={handleChange}
+                  />
+                </div>
+              </>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="notes">Notes (Optional)</Label>
               <Textarea
@@ -587,15 +759,31 @@ export function PurchaseEditForm({ purchaseId, onSuccess, onCancel }: PurchaseEd
                 placeholder="Add notes about this purchase"
                 value={formData.notes}
                 onChange={handleChange}
-                rows={3}
+                rows={2}
               />
             </div>
 
-            <div className="pt-4 border-t">
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total</span>
-                <span>${calculateTotal().toFixed(2)}</span>
+            <div className="pt-3 border-t space-y-1.5">
+              <div className="flex justify-between font-bold text-base">
+                <span>Total Amount:</span>
+                <span>{formatCurrency(calculateTotal())}</span>
               </div>
+              {formData.payment_status === "Partial" && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Remaining Balance Due:</span>
+                  <span className="font-semibold text-rose-600">
+                    {formatCurrency(Math.max(0, calculateTotal() - (Number(formData.amount_paid) || 0)))}
+                  </span>
+                </div>
+              )}
+              {(formData.payment_status === "Credit" || formData.payment_status === "Agreement") && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">On Credit Due:</span>
+                  <span className="font-semibold text-indigo-600">
+                    {formatCurrency(Math.max(0, calculateTotal() - (Number(formData.amount_paid) || 0)))}
+                  </span>
+                </div>
+              )}
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
