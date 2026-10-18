@@ -21,6 +21,7 @@ import { PurchasesSummary } from "./purchases-summary"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { formatCurrency } from "@/lib/utils"
 import { downloadPurchaseOrderPDF } from "@/lib/purchase-order-generator"
+import { reconcilePurchasePayment } from "@/lib/purchase-utils"
 import {
   getPurchasesData,
   getPurchaseById,
@@ -205,25 +206,13 @@ export function PurchasesList() {
 
   // Status Counts and Totals
   const paidAmount = purchases.reduce((sum, p) => {
-    if (p.amount_paid !== null && p.amount_paid !== undefined) {
-      return sum + Number(p.amount_paid)
-    }
-    const s = (p.payment_status || "Paid").toLowerCase().trim()
-    if (s === "paid" || s === "fully paid") {
-      return sum + (Number(p.total_amount) || 0)
-    }
-    return sum
+    const { amountPaid } = reconcilePurchasePayment(p)
+    return sum + amountPaid
   }, 0)
 
   const unpaidAmount = purchases.reduce((sum, p) => {
-    if (p.amount_due !== null && p.amount_due !== undefined) {
-      return sum + Number(p.amount_due)
-    }
-    const s = (p.payment_status || "Paid").toLowerCase().trim()
-    if (s === "paid" || s === "fully paid") {
-      return sum
-    }
-    return sum + (Number(p.total_amount) || 0)
+    const { amountDue } = reconcilePurchasePayment(p)
+    return sum + amountDue
   }, 0)
 
   const paidCount = purchases.filter((p) => {

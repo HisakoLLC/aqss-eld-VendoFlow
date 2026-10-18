@@ -10,6 +10,7 @@ import { Edit, ArrowLeft, Trash2, FileDown, Loader2 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { getPurchaseById, deletePurchase } from "@/components/purchases/purchases-data-provider"
+import { reconcilePurchasePayment } from "@/lib/purchase-utils"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { downloadPurchaseOrderPDF } from "@/lib/purchase-order-generator"
 import {
@@ -133,16 +134,7 @@ export default function PurchaseDetailsPage() {
 
   const totalAmount = Number(purchase.total_amount) || 0
   const paymentStatus = purchase.payment_status || "Paid"
-  const amountPaid =
-    purchase.amount_paid !== null && purchase.amount_paid !== undefined
-      ? Number(purchase.amount_paid)
-      : paymentStatus === "Paid"
-        ? totalAmount
-        : 0
-  const amountDue =
-    purchase.amount_due !== null && purchase.amount_due !== undefined
-      ? Number(purchase.amount_due)
-      : Math.max(0, totalAmount - amountPaid)
+  const { amountPaid, amountDue } = reconcilePurchasePayment(purchase)
 
   return (
     <div className="flex flex-col space-y-6">

@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf"
 import { format } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
+import { reconcilePurchasePayment } from "@/lib/purchase-utils"
 import type { Purchase, PurchaseItem } from "@/components/purchases/purchases-data-provider"
 
 export type StoreInfo = {
@@ -280,16 +281,7 @@ export async function generatePurchaseOrderPDF({
   doc.text(paymentMethod, rightX + 32, y + 14)
 
   const totalAmt = Number(purchase.total_amount) || 0
-  const amtPaid =
-    purchase.amount_paid !== null && purchase.amount_paid !== undefined
-      ? Number(purchase.amount_paid)
-      : statusLabel === "FULLY PAID"
-        ? totalAmt
-        : 0
-  const amtDue =
-    purchase.amount_due !== null && purchase.amount_due !== undefined
-      ? Number(purchase.amount_due)
-      : Math.max(0, totalAmt - amtPaid)
+  const { amountPaid: amtPaid, amountDue: amtDue } = reconcilePurchasePayment(purchase)
 
   doc.setFont("helvetica", "normal")
   doc.setTextColor(...secondaryColor)

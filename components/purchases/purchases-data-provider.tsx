@@ -38,6 +38,8 @@ export type PurchaseItem = {
   total_cost: number
 }
 
+import { reconcilePurchasePayment } from "@/lib/purchase-utils"
+
 export async function getPurchasesData() {
   try {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -74,16 +76,12 @@ export async function getPurchasesData() {
     const purchases: Purchase[] = data.map((purchase: any) => {
       const totalAmount = Number(purchase.total_amount) || 0
       const paymentStatus = purchase.payment_status || "Paid"
-      const amountPaid =
-        purchase.amount_paid !== null && purchase.amount_paid !== undefined
-          ? Number(purchase.amount_paid)
-          : paymentStatus === "Paid"
-            ? totalAmount
-            : 0
-      const amountDue =
-        purchase.amount_due !== null && purchase.amount_due !== undefined
-          ? Number(purchase.amount_due)
-          : Math.max(0, totalAmount - amountPaid)
+      const { amountPaid, amountDue } = reconcilePurchasePayment({
+        total_amount: totalAmount,
+        payment_status: paymentStatus,
+        amount_paid: purchase.amount_paid,
+        amount_due: purchase.amount_due,
+      })
 
       return {
         id: purchase.id,
@@ -149,16 +147,14 @@ export async function getPurchaseById(id: string) {
     const purchase: any = purchaseData
     const totalAmount = Number(purchase.total_amount) || 0
     const paymentStatus = purchase.payment_status || "Paid"
-    const amountPaid =
-      purchase.amount_paid !== null && purchase.amount_paid !== undefined
-        ? Number(purchase.amount_paid)
-        : paymentStatus === "Paid"
-          ? totalAmount
-          : 0
-    const amountDue =
-      purchase.amount_due !== null && purchase.amount_due !== undefined
-        ? Number(purchase.amount_due)
-        : Math.max(0, totalAmount - amountPaid)
+    const { amountPaid, amountDue } = reconcilePurchasePayment({
+      total_amount: totalAmount,
+      payment_status: paymentStatus,
+      amount_paid: purchase.amount_paid,
+      amount_due: purchase.amount_due,
+    })
+    purchase.amount_paid = amountPaid
+    purchase.amount_due = amountDue
 
     // Get purchase items
     const { data: items, error: itemsError } = await supabase

@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/use-toast"
 import { Trash2, Plus, Loader2, Save } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { reconcilePurchasePayment } from "@/lib/purchase-utils"
 
 export type PurchaseEditFormProps = {
   purchaseId?: string
@@ -122,11 +123,12 @@ export function PurchaseEditForm({ purchaseId, onSuccess, onCancel }: PurchaseEd
 
       if (purchase) {
         const pStatus = (purchase as any).payment_status || "Paid"
+        const { amountPaid } = reconcilePurchasePayment(purchase)
         const pAmountPaid =
-          (purchase as any).amount_paid !== null && (purchase as any).amount_paid !== undefined
-            ? String((purchase as any).amount_paid)
-            : pStatus === "Paid"
-              ? String(purchase.total_amount)
+          pStatus === "Paid" || pStatus === "Unpaid"
+            ? ""
+            : amountPaid > 0
+              ? String(amountPaid)
               : ""
 
         setFormData({

@@ -9,7 +9,7 @@ import { format } from "date-fns"
 import { Edit, FileDown, Loader2 } from "lucide-react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { downloadPurchaseOrderPDF } from "@/lib/purchase-order-generator"
-import { toast } from "@/components/ui/use-toast"
+import { reconcilePurchasePayment } from "@/lib/purchase-utils"
 import type { Purchase, PurchaseItem } from "./purchases-data-provider"
 
 type PurchaseDetailsProps = {
@@ -50,16 +50,7 @@ export function PurchaseDetails({ purchase, items, open, onOpenChange, onEdit }:
 
   const totalAmount = Number(purchase.total_amount) || 0
   const paymentStatus = purchase.payment_status || "Paid"
-  const amountPaid =
-    purchase.amount_paid !== null && purchase.amount_paid !== undefined
-      ? Number(purchase.amount_paid)
-      : paymentStatus === "Paid"
-        ? totalAmount
-        : 0
-  const amountDue =
-    purchase.amount_due !== null && purchase.amount_due !== undefined
-      ? Number(purchase.amount_due)
-      : Math.max(0, totalAmount - amountPaid)
+  const { amountPaid, amountDue } = reconcilePurchasePayment(purchase)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -174,12 +174,29 @@ export async function GET() {
             END IF;
           END $$;
 
+          -- Fix unpaid / credit / agreement purchases
           UPDATE purchases 
           SET 
-            payment_status = COALESCE(NULLIF(payment_status, ''), 'Paid'),
-            amount_paid = COALESCE(amount_paid, total_amount),
-            amount_due = GREATEST(0, total_amount - COALESCE(amount_paid, total_amount))
-          WHERE payment_status IS NULL OR payment_status = '' OR amount_paid IS NULL;
+            amount_paid = 0,
+            amount_due = total_amount
+          WHERE (
+            LOWER(COALESCE(payment_status, '')) LIKE '%unpaid%' 
+            OR LOWER(COALESCE(payment_status, '')) LIKE '%credit%' 
+            OR LOWER(COALESCE(payment_status, '')) LIKE '%agree%'
+          ) AND (amount_due IS NULL OR amount_due = 0 OR amount_paid = total_amount);
+
+          -- Fix fully paid purchases
+          UPDATE purchases 
+          SET 
+            payment_status = 'Paid',
+            amount_paid = total_amount,
+            amount_due = 0
+          WHERE (
+            payment_status IS NULL 
+            OR payment_status = '' 
+            OR LOWER(payment_status) = 'paid' 
+            OR LOWER(payment_status) = 'fully paid'
+          ) AND (amount_paid IS NULL OR amount_due IS NULL OR amount_due > 0);
         `,
       })
 
